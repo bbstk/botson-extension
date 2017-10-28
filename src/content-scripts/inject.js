@@ -1,5 +1,6 @@
 chrome.extension.sendMessage({}, function(response) {
 	var readyStateCheckInterval = setInterval(function() {
+    //console.log(window.location.hostname);
   	if (document.readyState === "complete") {
   		clearInterval(readyStateCheckInterval);
 
@@ -10,7 +11,10 @@ chrome.extension.sendMessage({}, function(response) {
        */
 
       chrome.storage.local.get(['oauth_token', 'oauth_token_secret', 'user_id'], function(items) {
+        console.log("NQKVI NESHTA");
         if (!items.oauth_token || !items.oauth_token_secret) return;
+
+        //TODO: CALL REFRESH IF TWITTER, STH ELSE IF FACEBOOK
         refresh(items);
         setInterval(function() { return refresh(items) }, 5000);
       });
@@ -137,9 +141,17 @@ chrome.extension.sendMessage({}, function(response) {
         var xhttp = new XMLHttpRequest();
         xhttp.open('POST', 'https://d69c1b32.ngrok.io/vanko_mock', true);
         xhttp.setRequestHeader("Content-Type", "application/json");
-        xhttp.send(JSON.stringify(tweet));
-        //console.log("JSON.stringify(tweet): ", JSON.stringify(tweet));
-        xhttp.onload = saveTweetsWithLinks;
+       //TODO:UNCOMMENT -> xhttp.send(JSON.stringify(tweet));
+        
+
+        mockNaDaniNeshtoto(tweet)
+        
+        //TODO: UNCOMMENT TO WORK
+       // xhttp.onload = saveTweetsWithLinks;
+      }
+
+      function mockNaDaniNeshtoto(tweet) {
+        tweetsWithLinksMap[tweet.id] = {id: tweet.id, link: tweet.link, score: 0.8}
       }
 
       //Update the tweets map
@@ -225,15 +237,15 @@ chrome.extension.sendMessage({}, function(response) {
        */
       function toggleTweetUIFakeNews(tweet, threshold) {
         var score = tweet.getAttribute('data-link-score');
-        console.log("Score in ui: " + score)
+        //console.log("Score in ui: " + score)
         var screen_name = tweet.getAttribute('data-screen-name');
         //if (true) {
         if (score > threshold && !tweet.getAttribute('user-revealed')) {
-          console.log("Inside the changing of the css.")
+          //console.log("Inside the changing of the css.")
          // if (true) tweet.className += ' probably-a-bot';
           //if (true) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
           if (!tweet.classList.contains('probably-a-bot')) tweet.className += ' probably-a-bot';
-          if (!tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
+          if (!tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.insertBefore(createFakeNewsMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
         } else {
           tweet.classList.remove('probably-a-bot');
           if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
@@ -267,18 +279,6 @@ chrome.extension.sendMessage({}, function(response) {
         // }
       }
 
-      // function toggleTweetUI(tweet, threshold) {
-      //   var score = tweet.getAttribute('data-bot-score');
-      //   var screen_name = tweet.getAttribute('data-screen-name');
-      //   if (false) {
-      //     if (true) tweet.className += ' probably-a-bot';
-      //     if (true) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
-      //   } else {
-      //     tweet.classList.remove('probably-a-bot');
-      //     if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
-      //   }
-      // }
-
       /**
        * On slider change, then update UI.
        */
@@ -304,6 +304,37 @@ chrome.extension.sendMessage({}, function(response) {
         message.childNodes[1].childNodes[0].addEventListener('click', function(e) {
           this.parentNode.parentNode.parentNode.parentNode.childNodes[2].classList.remove('probably-a-bot');
           this.parentNode.parentNode.parentNode.parentNode.childNodes[2].setAttribute('user-revealed', true);
+          this.parentNode.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode.parentNode);
+        });
+        return mask;
+      }
+
+       /**
+       * Create mask and message div.
+       */
+
+      function createFakeNewsMask(user, height) {
+        var mask = document.createElement('div');
+        var message = document.createElement('div');
+        mask.className = 'probably-a-bot-mask';
+        message.className = 'probably-a-bot-mask-message-short';
+        if (height > 150) message.className = 'probably-a-bot-mask-message-medium';
+        if (height > 300) message.className = 'probably-a-bot-mask-message-tall';
+        message.innerHTML = 'We are ' + Math.round(100 * user.score) + '% confident that this tweet contains fake news.';
+        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet">Reveal tweet</a>. <a href="https://botometer.iuni.iu.edu/#!/?sn=' + user.screen_name + '" target="_blank">Learn more about this account</a>.</p>';
+        mask.appendChild(message);
+        message.childNodes[1].childNodes[0].addEventListener('click', function(e) {
+          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].classList.remove('probably-a-bot');
+          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].setAttribute('user-revealed', true);
+          
+
+          var para = document.createElement("a");
+          var node = document.createTextNode("If you think the tweet below is actually real news click here and we'll improve our algorithm.");
+          para.appendChild(node);
+          console.log(this.parentNode.parentNode.parentNode.parentNode.childNodes[2]);
+          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].insertBefore(para, this.parentNode.parentNode.parentNode.parentNode.childNodes[2].firstChild);
+
+
           this.parentNode.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode.parentNode);
         });
         return mask;

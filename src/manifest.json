@@ -31,16 +31,17 @@
     "https://twitter.com/*",
     "https://api.twitter.com/*",
     "https://askbotson.herokuapp.com/*",
-    "https://d69c1b32.ngrok.io/*"
+    "https://d69c1b32.ngrok.io/*",
+    "https://www.facebook.com/*"
   ],
   "content_security_policy": "script-src 'self'; object-src 'self'",
   "content_scripts": [
     {
-      "matches": [ "https://twitter.com/*" ],
+      "matches": [ "https://twitter.com/*", "https://www.facebook.com/*" ],
       "css": [ "content-scripts/inject.css" ]
     },
     {
-      "matches": [ "https://twitter.com/*" ],
+      "matches": [ "https://twitter.com/*", "https://www.facebook.com/*" ],
       "js": [ "content-scripts/inject.js" ]
     },
     {
