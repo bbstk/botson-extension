@@ -1,6 +1,5 @@
 chrome.extension.sendMessage({}, function(response) {
 	var readyStateCheckInterval = setInterval(function() {
-    //console.log(window.location.hostname);
   	if (document.readyState === "complete") {
   		clearInterval(readyStateCheckInterval);
 
@@ -12,12 +11,29 @@ chrome.extension.sendMessage({}, function(response) {
 
       chrome.storage.local.get(['oauth_token', 'oauth_token_secret', 'user_id'], function(items) {
         console.log("NQKVI NESHTA");
+
+
         if (!items.oauth_token || !items.oauth_token_secret) return;
 
         //TODO: CALL REFRESH IF TWITTER, STH ELSE IF FACEBOOK
-        refresh(items);
-        setInterval(function() { return refresh(items) }, 5000);
+        if (window.location.hostname === "twitter.com") {
+          console.log("It's a twitter show.");
+          refresh(items);
+          setInterval(function() { return refresh(items) }, 5000);
+        } else if (window.location.hostname === "www.facebook.com") {
+          console.log("It's a facebook show");
+          refreshFb();
+          setInterval(function() { return refreshFb() }, 5000);
+        }
       });
+
+      function refreshFb() {
+        var stories = document.querySelectorAll('.fbUserStory');
+
+        for (var i = 0; i < stories.length; i++) {
+          stories[i].className += ' probably-a-bot';
+        }
+      }
 
       /**
        * Refresh when new tweets appear in DOM.
