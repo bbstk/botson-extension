@@ -1,6 +1,6 @@
 {
-  "name": "Botson",
-  "short_name": "Botson",
+  "name": "Botson-ivans-fork",
+  "short_name": "Botson-ivans-fork",
   "version": "0.2.1",
   "manifest_version": 2,
   "description": "Detect twitter bots in your newsfeed",
@@ -12,7 +12,7 @@
   },
   "browser_action": {
     "default_icon": "icons/icon48.png",
-    "default_title": "Botson",
+    "default_title": "Botson-ivans-fork",
     "default_popup": "popup/popup.html"
   },
   "background": {
@@ -30,7 +30,8 @@
     "storage",
     "https://twitter.com/*",
     "https://api.twitter.com/*",
-    "https://askbotson.herokuapp.com/*"
+    "https://askbotson.herokuapp.com/*",
+    "https://d69c1b32.ngrok.io/*"
   ],
   "content_security_policy": "script-src 'self'; object-src 'self'",
   "content_scripts": [

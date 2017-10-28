@@ -3,6 +3,8 @@ chrome.extension.sendMessage({}, function(response) {
   	if (document.readyState === "complete") {
   		clearInterval(readyStateCheckInterval);
 
+      var tweetsWithLinksMap = {}
+
       /**
        * Start.
        */
@@ -19,12 +21,75 @@ chrome.extension.sendMessage({}, function(response) {
 
       function refresh(auth) {
         var users = formatUsers(getUsersFromTimeline());
+
+        //Get all tweets with links from timeline
+        var tweetsWithLinks = getTweetsWithLinks();
+
+       // //console.log("TWEETS WITH LINKS: " + tweetsWithLinks)
+
+        for (var i = 0; i < tweetsWithLinks.length; i++) {
+          //console.log("Tweet id: ", tweetsWithLinks[i].id)
+          //console.log("Tweet link: ", tweetsWithLinks[i].link)
+          //console.log("Tweet score: ", tweetsWithLinks[i].score)
+          if(tweetsWithLinksMap[tweetsWithLinks[i].id].score) continue;
+          getLinkScore(tweetsWithLinks[i]);
+        }
+
         if (users.length > 10) {
           for (var i = 0; i < users.length; i++) {
             getScore(users[i], auth);
           }
         }
         update();
+        updateFakeNews();
+      }
+
+      /**
+       * Get tweets with links from timeline
+       * For your sanity don't go into the rabbithole below 
+       */
+
+      function getTweetsWithLinks() {
+        var tweets = document.querySelectorAll('div.tweet');
+        var tweetsLink = [];
+        for (var i = 0; i < tweets.length; i++) {
+          if (tweets[i].getAttribute('link-data-scraped') === 'true') continue;
+          var tweet_id = tweets[i].getAttribute('data-tweet-id');
+          if (tweetsWithLinksMap[tweet_id]) continue;
+
+          var link = ""
+
+          var fieldContainingLink = tweets[i].getElementsByClassName('js-tweet-text-container');
+          //console.log(fieldContainingLink);
+          if (fieldContainingLink === undefined) {
+            continue;
+          } 
+          for (var k = 0; k< fieldContainingLink.length; k++) {
+            var children = fieldContainingLink[k].getElementsByTagName('A');
+            //console.log("Children === undefined: " + (children === undefined));
+            if (children === undefined) {
+              continue;
+            }
+            //console.log("Children len: " + children.length);
+            for (var j = 0; j < children.length; j++) {
+              temp = children[j].getAttribute('data-expanded-url');
+              //console.log("Temp: " + temp)
+              if (temp != undefined && temp != "") {
+                link = temp;
+                break;
+              }
+            }
+            if (link != undefined && link != "") break;
+          }
+          if (link == undefined || link == "") continue;
+          var entity = {};
+          entity["id"] = tweet_id;
+          entity["link"] = link;
+          tweetsLink.push(entity);
+          tweetsWithLinksMap[tweet_id] = entity;
+          tweets[i].setAttribute('link-data-scraped', 'true');
+        }
+        return tweetsLink;
       }
 
       /**
@@ -53,14 +118,36 @@ chrome.extension.sendMessage({}, function(response) {
        */
 
       function getScore(user, auth) {
+        // var xhttp = new XMLHttpRequest();
+        // xhttp.open('POST', 'https://askbotson.herokuapp.com/api/', true);
+        // xhttp.setRequestHeader("Content-Type", "application/json");
+        // xhttp.setRequestHeader("x-twitter-oauth-token", auth.oauth_token);
+        // xhttp.setRequestHeader("x-twitter-oauth-secret", auth.oauth_token_secret);
+        // if (auth.user_id) xhttp.setRequestHeader("x-twitter-user-id", auth.user_id);
+        // xhttp.send(JSON.stringify(user));
+        // xhttp.onload = saveUsers;
+      }
+
+      /**
+       * Get the fake news score of the link in a tweet
+      */
+
+      function getLinkScore(tweet) {
+        //TODO: prati na dani malko post requestche
         var xhttp = new XMLHttpRequest();
-        xhttp.open('POST', 'https://askbotson.herokuapp.com/api/', true);
+        xhttp.open('POST', 'https://d69c1b32.ngrok.io/vanko_mock', true);
         xhttp.setRequestHeader("Content-Type", "application/json");
-        xhttp.setRequestHeader("x-twitter-oauth-token", auth.oauth_token);
-        xhttp.setRequestHeader("x-twitter-oauth-secret", auth.oauth_token_secret);
-        if (auth.user_id) xhttp.setRequestHeader("x-twitter-user-id", auth.user_id);
-        xhttp.send(JSON.stringify(user));
-        xhttp.onload = saveUsers;
+        xhttp.send(JSON.stringify(tweet));
+        //console.log("JSON.stringify(tweet): ", JSON.stringify(tweet));
+        xhttp.onload = saveTweetsWithLinks;
+      }
+
+      //Update the tweets map
+      function saveTweetsWithLinks(e) {
+        var res = JSON.parse(e.target.response); 
+        //console.log("Received response from dani banani: " + res);
+        tweetsWithLinksMap[res.id] = {id: res.id, link: res.link, score: res.score}
+        //console.log(JSON.stringify(tweetsWithLinksMap[res.id]));
       }
 
       /**
@@ -97,6 +184,63 @@ chrome.extension.sendMessage({}, function(response) {
       }
 
       /**
+       * Update dom with data considering the fake news api
+       */
+      function updateFakeNews() {
+        //console.log("Updating fake news...");
+        var tweets = document.querySelectorAll('div.tweet');
+        //console.log("Tweets i can see on the timeline: " + tweets.length);
+        for (var i = 0; i < tweets.length; i++) {
+          //console.log("tweetsWithLinksMap: " + JSON.stringify(tweetsWithLinksMap))
+          for (var property in tweetsWithLinksMap) {
+            //console.log("Property: ", property);
+            if (tweetsWithLinksMap.hasOwnProperty(property)) {
+              //console.log("Inside the map...");
+              if (!tweetsWithLinksMap[property].score) continue;
+              if (tweets[i].getAttribute('data-tweet-id') !== property.toString()) continue;
+              if (tweets[i].getAttribute('data-link-score')) continue;
+              //console.log("----SETTING ATTRIBUTE for id: " + property)
+              tweets[i].setAttribute('data-link-score', tweetsWithLinksMap[property].score);
+            }
+          }
+        }
+        
+        updateUIFakeNews(0.01);
+      }
+
+      /**
+       * Update dom UI for fake news.
+       */
+
+      function updateUIFakeNews(threshold) {
+        threshold = threshold || 0.6;
+        var tweets = document.querySelectorAll('div.tweet');
+        for (var i = 0; i < tweets.length; i++) {
+          toggleTweetUIFakeNews(tweets[i], threshold);
+        }
+      }
+
+      /**
+       * Toggle Fake News UI for tweet.
+       */
+      function toggleTweetUIFakeNews(tweet, threshold) {
+        var score = tweet.getAttribute('data-link-score');
+        console.log("Score in ui: " + score)
+        var screen_name = tweet.getAttribute('data-screen-name');
+        //if (true) {
+        if (score > threshold && !tweet.getAttribute('user-revealed')) {
+          console.log("Inside the changing of the css.")
+         // if (true) tweet.className += ' probably-a-bot';
+          //if (true) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
+          if (!tweet.classList.contains('probably-a-bot')) tweet.className += ' probably-a-bot';
+          if (!tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
+        } else {
+          tweet.classList.remove('probably-a-bot');
+          if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
+        }
+      }
+
+      /**
        * Update dom UI.
        */
 
@@ -111,18 +255,29 @@ chrome.extension.sendMessage({}, function(response) {
       /**
        * Toggle UI for tweet.
        */
-
       function toggleTweetUI(tweet, threshold) {
-        var score = tweet.getAttribute('data-bot-score');
-        var screen_name = tweet.getAttribute('data-screen-name');
-        if (score > threshold && !tweet.getAttribute('user-revealed')) {
-          if (!tweet.classList.contains('probably-a-bot')) tweet.className += ' probably-a-bot';
-          if (!tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
-        } else {
-          tweet.classList.remove('probably-a-bot');
-          if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
-        }
+        // var score = tweet.getAttribute('data-bot-score');
+        // var screen_name = tweet.getAttribute('data-screen-name');
+        // if (score > threshold && !tweet.getAttribute('user-revealed')) {
+        //   if (!tweet.classList.contains('probably-a-bot')) tweet.className += ' probably-a-bot';
+        //   if (!tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
+        // } else {
+        //   tweet.classList.remove('probably-a-bot');
+        //   if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
+        // }
       }
+
+      // function toggleTweetUI(tweet, threshold) {
+      //   var score = tweet.getAttribute('data-bot-score');
+      //   var screen_name = tweet.getAttribute('data-screen-name');
+      //   if (false) {
+      //     if (true) tweet.className += ' probably-a-bot';
+      //     if (true) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
+      //   } else {
+      //     tweet.classList.remove('probably-a-bot');
+      //     if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
+      //   }
+      // }
 
       /**
        * On slider change, then update UI.
