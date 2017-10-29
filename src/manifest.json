@@ -6,12 +6,12 @@
   "description": "Detect twitter bots in your newsfeed",
   "homepage_url": "http://botson.net/",
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icons/icon16fork.png",
+    "48": "icons/icon16fork.png",
+    "128": "icons/icon16fork.png"
   },
   "browser_action": {
-    "default_icon": "icons/icon48.png",
+    "default_icon": "icons/icon16fork.png",
     "default_title": "Botson-ivans-fork",
     "default_popup": "popup/popup.html"
   },

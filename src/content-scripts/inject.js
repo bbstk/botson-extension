@@ -3,25 +3,26 @@ chrome.extension.sendMessage({}, function(response) {
   	if (document.readyState === "complete") {
   		clearInterval(readyStateCheckInterval);
 
-      var tweetsWithLinksMap = {}
-
+      var tweetsWithLinksMap = {};
+      var storiesWithLinksMap = {};
+      var FBID = 1;
       /**
        * Start.
        */
 
       chrome.storage.local.get(['oauth_token', 'oauth_token_secret', 'user_id'], function(items) {
-        console.log("NQKVI NESHTA");
+        //console.log("NQKVI NESHTA");
 
 
         if (!items.oauth_token || !items.oauth_token_secret) return;
 
         //TODO: CALL REFRESH IF TWITTER, STH ELSE IF FACEBOOK
         if (window.location.hostname === "twitter.com") {
-          console.log("It's a twitter show.");
+          //console.log("It's a twitter show.");
           refresh(items);
-          setInterval(function() { return refresh(items) }, 5000);
+          setInterval(function() { return refresh(items) }, 10000);
         } else if (window.location.hostname === "www.facebook.com") {
-          console.log("It's a facebook show");
+          //console.log("It's a facebook show");
           refreshFb();
           setInterval(function() { return refreshFb() }, 5000);
         }
@@ -30,9 +31,16 @@ chrome.extension.sendMessage({}, function(response) {
       function refreshFb() {
         var stories = document.querySelectorAll('.fbUserStory');
 
-        for (var i = 0; i < stories.length; i++) {
-          stories[i].className += ' probably-a-bot';
+        var storiesWithLinks = getStoriesWithLinks();
+
+        for (var i = 0; i < storiesWithLinks.length; i++) {
+          if(storiesWithLinksMap[storiesWithLinks[i].id].score) {
+            continue;
+          }
+          getLinkScoreFB(storiesWithLinks[i]);
         }
+
+        updateFakeNewsFB();
       }
 
       /**
@@ -51,7 +59,13 @@ chrome.extension.sendMessage({}, function(response) {
           //console.log("Tweet id: ", tweetsWithLinks[i].id)
           //console.log("Tweet link: ", tweetsWithLinks[i].link)
           //console.log("Tweet score: ", tweetsWithLinks[i].score)
-          if(tweetsWithLinksMap[tweetsWithLinks[i].id].score) continue;
+          //console.log("SCORE: ", tweetsWithLinksMap[tweetsWithLinks[i].id].score)
+          //console.log("CURRENT ID: ", tweetsWithLinks[i].id)
+          //console.log("STRINGIFY OBEJCT WITH CURRENT ID: ", JSON.stringify(tweetsWithLinksMap[tweetsWithLinks[i].id]))
+          if(tweetsWithLinksMap[tweetsWithLinks[i].id].score) {
+            //console.log("SKIPVAM TOVA DA PRASHTAM REQUESTI NA MALKIQ DANI!")
+            continue;
+          }
           getLinkScore(tweetsWithLinks[i]);
         }
 
@@ -75,7 +89,15 @@ chrome.extension.sendMessage({}, function(response) {
         for (var i = 0; i < tweets.length; i++) {
           if (tweets[i].getAttribute('link-data-scraped') === 'true') continue;
           var tweet_id = tweets[i].getAttribute('data-tweet-id');
-          if (tweetsWithLinksMap[tweet_id]) continue;
+          //console.log("tweet_id: ", (tweet_id == null));
+          if (tweet_id == null) continue;
+          //console.log("ID: " + tweet_id.toString());
+          //console.log("SHOULD BE HERE: " + JSON.stringify(tweetsWithLinksMap));
+
+          if (tweetsWithLinksMap.hasOwnProperty(tweet_id)){ 
+            console.log("Should continue sometimes pls");
+            continue;
+          }
 
           var link = ""
 
@@ -105,11 +127,51 @@ chrome.extension.sendMessage({}, function(response) {
           var entity = {};
           entity["id"] = tweet_id;
           entity["link"] = link;
+          //console.log(tweets[i].getElementsByClassName('username')[0].getElementsByTagName('b')[0].innerHTML);
+          entity["user"] = tweets[i].getElementsByClassName('username')[0].getElementsByTagName('b')[0].innerHTML;
           tweetsLink.push(entity);
           tweetsWithLinksMap[tweet_id] = entity;
           tweets[i].setAttribute('link-data-scraped', 'true');
         }
         return tweetsLink;
+      }
+
+      function getStoriesWithLinks() {
+        var stories = document.querySelectorAll('.fbUserStory');
+        var storiesLinks = [];
+        for (var i= 0; i < stories.length; i++) {
+          if (stories[i].getAttribute('fake-id')) continue;
+          stories[i].setAttribute('fake-id', FBID);
+          var fb_id = FBID;
+          FBID ++;
+          var link = ""
+          var fieldsContainingLink = stories[i].getElementsByClassName('_6ks');
+          if (fieldsContainingLink === undefined) continue;
+          for (var k = 0; k<fieldsContainingLink.length; k++) {
+            var children = fieldsContainingLink[k].firstElementChild;
+            //console.log(fieldsContainingLink[k].getElementsByTagName('a'));
+            if (children === undefined) continue;
+           // for (var j = 0; j < children.length; j++) {
+              if (children.href == null ) {//|| children.href.includes("l.facebook.com")) {
+                //console.log("Skipped: " + children);
+                continue;
+              }
+              temp = children.href
+              if (temp != undefined && temp != "") {
+                link = temp;
+                break;
+              }
+           // }
+            if (link != undefined && link != "") break;
+          }
+          if (link == undefined || link == "") continue;
+          var entity = {};
+          entity["id"] = fb_id;
+          entity["link"] = link;
+          storiesLinks.push(entity);
+          storiesWithLinksMap[fb_id] = entity;
+        }
+        return storiesLinks;
       }
 
       /**
@@ -153,17 +215,33 @@ chrome.extension.sendMessage({}, function(response) {
       */
 
       function getLinkScore(tweet) {
-        //TODO: prati na dani malko post requestche
         var xhttp = new XMLHttpRequest();
-        xhttp.open('POST', 'https://d69c1b32.ngrok.io/vanko_mock', true);
+        xhttp.open('POST', 'https://d69c1b32.ngrok.io/check_url', true);
         xhttp.setRequestHeader("Content-Type", "application/json");
-       //TODO:UNCOMMENT -> xhttp.send(JSON.stringify(tweet));
+        xhttp.send(JSON.stringify(tweet));
         
 
-        mockNaDaniNeshtoto(tweet)
+        //mockNaDaniNeshtoto(tweet)
         
         //TODO: UNCOMMENT TO WORK
-       // xhttp.onload = saveTweetsWithLinks;
+       xhttp.onload = saveTweetsWithLinks;
+      }
+
+      function getLinkScoreFB(story) {
+        var xhttp = new XMLHttpRequest();
+        xhttp.open('POST', 'https://d69c1b32.ngrok.io/check_url', true);
+        xhttp.setRequestHeader("Content-Type", "application/json");
+        //xhttp.send(JSON.stringify(story));
+        
+
+        mockNaDaniNeshtotoFB(story)
+        
+        //TODO: UNCOMMENT TO WORK
+       //xhttp.onload = saveStoriesWithLinks;
+      }
+
+      function mockNaDaniNeshtotoFB(story) {
+        storiesWithLinksMap[story.id] = {id: story.id, link: story.link, score: 0.8}
       }
 
       function mockNaDaniNeshtoto(tweet) {
@@ -173,8 +251,16 @@ chrome.extension.sendMessage({}, function(response) {
       //Update the tweets map
       function saveTweetsWithLinks(e) {
         var res = JSON.parse(e.target.response); 
+        console.log("user score: " + res.user_score);
+        tweetsWithLinksMap[res.id] = {id: res.id, link: res.link, score: res.score, user: res.user, user_score: res.user_score};
+        console.log("Gledai dolu:");
+        console.log(JSON.stringify(tweetsWithLinksMap[res.id]));
+      }
+
+      function saveStoriesWithLinks(e) {
+        var res = JSON.parse(e.target.response); 
         //console.log("Received response from dani banani: " + res);
-        tweetsWithLinksMap[res.id] = {id: res.id, link: res.link, score: res.score}
+        storiesWithLinksMap[res.id] = {id: res.id, link: res.link, score: res.score}
         //console.log(JSON.stringify(tweetsWithLinksMap[res.id]));
       }
 
@@ -229,11 +315,35 @@ chrome.extension.sendMessage({}, function(response) {
               if (tweets[i].getAttribute('data-link-score')) continue;
               //console.log("----SETTING ATTRIBUTE for id: " + property)
               tweets[i].setAttribute('data-link-score', tweetsWithLinksMap[property].score);
+              //console.log(JSON.stringify(tweetsWithLinksMap[property]));
+              tweets[i].setAttribute('data-user-score', tweetsWithLinksMap[property].user_score);
             }
           }
         }
         
-        updateUIFakeNews(0.01);
+        updateUIFakeNews(0.65);
+      }
+
+      function updateFakeNewsFB() {
+        //console.log("Updating fake news...");
+        var stories = document.querySelectorAll('.fbUserStory');
+        //console.log("Tweets i can see on the timeline: " + tweets.length);
+        for (var i = 0; i < stories.length; i++) {
+          //console.log("tweetsWithLinksMap: " + JSON.stringify(tweetsWithLinksMap))
+          for (var property in storiesWithLinksMap) {
+            //console.log("Property: ", property);
+            if (storiesWithLinksMap.hasOwnProperty(property)) {
+              //console.log("Inside the map...");
+              if (!storiesWithLinksMap[property].score) continue;
+              if (stories[i].getAttribute('fake-id') !== property.toString()) continue;
+              if (stories[i].getAttribute('data-link-score')) continue;
+              //console.log("----SETTING ATTRIBUTE for id: " + property)
+              stories[i].setAttribute('data-link-score', storiesWithLinksMap[property].score);
+            }
+          }
+        }
+        
+        updateUIFakeNewsFB(0.65);
       }
 
       /**
@@ -248,10 +358,37 @@ chrome.extension.sendMessage({}, function(response) {
         }
       }
 
+      function updateUIFakeNewsFB(threshold) {
+        threshold = threshold || 0.6;
+        var stories = document.querySelectorAll('.fbUserStory');
+        for (var i = 0; i < stories.length; i++) {
+          toggleStoryUIFakeNewsFB(stories[i], threshold);
+        }
+      }
+
+      function toggleStoryUIFakeNewsFB(tweet, threshold) {
+        var score = tweet.getAttribute('data-link-score');
+        //console.log("Score in ui: " + score)
+        var screen_name = tweet.getAttribute('data-screen-name');
+        //if (true) {
+        if (score > threshold && !tweet.getAttribute('user-revealed')) {
+          //console.log("Inside the changing of the css.")
+         // if (true) tweet.className += ' probably-a-bot';
+          //if (true) tweet.parentNode.insertBefore(createMask({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
+          if (!tweet.classList.contains('probably-a-bot')) tweet.className += ' probably-a-bot';
+          if (!tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.insertBefore(createFakeNewsMaskFB({ score: score, screen_name: screen_name }, tweet.scrollHeight), tweet);
+        } else {
+          tweet.classList.remove('probably-a-bot');
+          if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
+        }
+      }
+
       /**
        * Toggle Fake News UI for tweet.
        */
       function toggleTweetUIFakeNews(tweet, threshold) {
+        addBotScore(tweet.getAttribute('data-user-score'), tweet);
+
         var score = tweet.getAttribute('data-link-score');
         //console.log("Score in ui: " + score)
         var screen_name = tweet.getAttribute('data-screen-name');
@@ -266,6 +403,15 @@ chrome.extension.sendMessage({}, function(response) {
           tweet.classList.remove('probably-a-bot');
           if (tweet.parentNode.querySelector('.probably-a-bot-mask')) tweet.parentNode.querySelector('.probably-a-bot-mask').remove();
         }
+      }
+
+      function addBotScore(user_score, tweet) {
+        if (user_score == null || tweet.getAttribute('user-score-set')) return;
+        var div = document.createElement("div");
+        div.className = "feedback";
+        div.innerHTML = '<p>Bot Score for this user: ' + user_score*100 + '%</p>';
+        tweet.insertBefore(div, tweet.firstChild);
+        tweet.setAttribute('user-score-set', 'true');
       }
 
       /**
@@ -339,16 +485,49 @@ chrome.extension.sendMessage({}, function(response) {
         message.innerHTML = 'We are ' + Math.round(100 * user.score) + '% confident that this tweet contains fake news.';
         message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet">Reveal tweet</a>. <a href="https://botometer.iuni.iu.edu/#!/?sn=' + user.screen_name + '" target="_blank">Learn more about this account</a>.</p>';
         mask.appendChild(message);
+        var div = document.createElement("div");
+        div.className = "feedback"
+        div.innerHTML = '<a href="#/" onclick="return false;">If you think the story below is actually real news click here and we will improve our algorithm. </a>'
+        div.childNodes[0].addEventListener('click', function(e) {
+          div.innerHTML = "Thank you for your feedback!";
+          div.className = "successful-feedback";
+        })
         message.childNodes[1].childNodes[0].addEventListener('click', function(e) {
           this.parentNode.parentNode.parentNode.parentNode.childNodes[2].classList.remove('probably-a-bot');
           this.parentNode.parentNode.parentNode.parentNode.childNodes[2].setAttribute('user-revealed', true);
           
+          //console.log(this.parentNode.parentNode.parentNode.parentNode.childNodes[2]);
+          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].insertBefore(div, this.parentNode.parentNode.parentNode.parentNode.childNodes[2].firstChild);
 
-          var para = document.createElement("a");
-          var node = document.createTextNode("If you think the tweet below is actually real news click here and we'll improve our algorithm.");
-          para.appendChild(node);
-          console.log(this.parentNode.parentNode.parentNode.parentNode.childNodes[2]);
-          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].insertBefore(para, this.parentNode.parentNode.parentNode.parentNode.childNodes[2].firstChild);
+          this.parentNode.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode.parentNode);
+        });
+        return mask;
+      }
+
+      function createFakeNewsMaskFB(user, height) {
+        var mask = document.createElement('div');
+        var message = document.createElement('div');
+        mask.className = 'probably-a-bot-mask';
+        message.className = 'probably-a-bot-mask-message-short';
+        if (height > 150) message.className = 'probably-a-bot-mask-message-medium';
+        if (height > 300) message.className = 'probably-a-bot-mask-message-tall';
+        message.innerHTML = 'We are ' + Math.round(100 * user.score) + '% confident that this story contains fake news.';
+        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet" onclick="return false;">Reveal story</a>. <a href="https://botometer.iuni.iu.edu/#!/?sn=' + user.screen_name + '" target="_blank">Learn more about this account</a>.</p>';
+        mask.appendChild(message);
+        var div = document.createElement("div");
+        div.className = "feedback"
+        div.innerHTML = '<a href="#/" onclick="return false;">If you think the story below is actually real news click here and we will improve our algorithm. </a>'
+        div.childNodes[0].addEventListener('click', function(e) {
+          div.innerHTML = "Thank you for your feedback!";
+          div.className = "successful-feedback";
+        })
+        message.childNodes[1].childNodes[0].addEventListener('click', function(e) {
+          //console.log(this.parentNode.parentNode.parentNode.parentNode.childNodes[2].classList)
+          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].classList.remove('probably-a-bot');
+          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].setAttribute('user-revealed', true);
+          
+          // //console.log(this.parentNode.parentNode.parentNode.parentNode.childNodes[2]);
+          this.parentNode.parentNode.parentNode.parentNode.childNodes[2].insertBefore(div, this.parentNode.parentNode.parentNode.parentNode.childNodes[2].firstChild);
 
 
           this.parentNode.parentNode.parentNode.parentNode.removeChild(this.parentNode.parentNode.parentNode);

@@ -6,12 +6,14 @@
   -webkit-filter: blur(10px);
 }
 
-.fbUserStory {
-
+.feedback {
+  background-color: aliceblue;
+  text-align: center;
 }
 
-.asd {
-  opacity: 0;
+.successful-feedback {
+  background-color: lightgreen;
+  text-align: center;
 }
 
 .probably-a-bot-mask {
