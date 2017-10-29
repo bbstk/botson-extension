@@ -20,7 +20,7 @@ chrome.extension.sendMessage({}, function(response) {
         if (window.location.hostname === "twitter.com") {
           //console.log("It's a twitter show.");
           refresh(items);
-          setInterval(function() { return refresh(items) }, 10000);
+          setInterval(function() { return refresh(items) }, 5000);
         } else if (window.location.hostname === "www.facebook.com") {
           //console.log("It's a facebook show");
           refreshFb();
@@ -66,7 +66,7 @@ chrome.extension.sendMessage({}, function(response) {
             //console.log("SKIPVAM TOVA DA PRASHTAM REQUESTI NA MALKIQ DANI!")
             continue;
           }
-          getLinkScore(tweetsWithLinks[i]);
+          setTimeout(getLinkScore(tweetsWithLinks[i]), 500);
         }
 
         if (users.length > 10) {
@@ -219,7 +219,6 @@ chrome.extension.sendMessage({}, function(response) {
         xhttp.open('POST', 'https://d69c1b32.ngrok.io/check_url', true);
         xhttp.setRequestHeader("Content-Type", "application/json");
         xhttp.send(JSON.stringify(tweet));
-        
 
         //mockNaDaniNeshtoto(tweet)
         
@@ -231,13 +230,12 @@ chrome.extension.sendMessage({}, function(response) {
         var xhttp = new XMLHttpRequest();
         xhttp.open('POST', 'https://d69c1b32.ngrok.io/check_url', true);
         xhttp.setRequestHeader("Content-Type", "application/json");
-        //xhttp.send(JSON.stringify(story));
-        
-
-        mockNaDaniNeshtotoFB(story)
+        xhttp.send(JSON.stringify(story));
+       
+        //mockNaDaniNeshtotoFB(story)
         
         //TODO: UNCOMMENT TO WORK
-       //xhttp.onload = saveStoriesWithLinks;
+       xhttp.onload = saveStoriesWithLinks;
       }
 
       function mockNaDaniNeshtotoFB(story) {
@@ -261,7 +259,7 @@ chrome.extension.sendMessage({}, function(response) {
         var res = JSON.parse(e.target.response); 
         //console.log("Received response from dani banani: " + res);
         storiesWithLinksMap[res.id] = {id: res.id, link: res.link, score: res.score}
-        //console.log(JSON.stringify(tweetsWithLinksMap[res.id]));
+        console.log(JSON.stringify(storiesWithLinksMap[res.id]));
       }
 
       /**
@@ -461,7 +459,7 @@ chrome.extension.sendMessage({}, function(response) {
         if (height > 150) message.className = 'probably-a-bot-mask-message-medium';
         if (height > 300) message.className = 'probably-a-bot-mask-message-tall';
         message.innerHTML = 'We are ' + Math.round(100 * user.score) + '% confident that this tweet is from a bot.';
-        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet">Reveal tweet</a>. <a href="https://botometer.iuni.iu.edu/#!/?sn=' + user.screen_name + '" target="_blank">Learn more about this account</a>.</p>';
+        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet">Reveal tweet</a>. <a href="https://bbstk.github.io/bbstk.github.io/">Learn more about this account</a>.</p>';
         mask.appendChild(message);
         message.childNodes[1].childNodes[0].addEventListener('click', function(e) {
           this.parentNode.parentNode.parentNode.parentNode.childNodes[2].classList.remove('probably-a-bot');
@@ -483,7 +481,7 @@ chrome.extension.sendMessage({}, function(response) {
         if (height > 150) message.className = 'probably-a-bot-mask-message-medium';
         if (height > 300) message.className = 'probably-a-bot-mask-message-tall';
         message.innerHTML = 'We are ' + Math.round(100 * user.score) + '% confident that this tweet contains fake news.';
-        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet">Reveal tweet</a>. <a href="https://botometer.iuni.iu.edu/#!/?sn=' + user.screen_name + '" target="_blank">Learn more about this account</a>.</p>';
+        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet">Reveal tweet</a>. <a href="https://bbstk.github.io/bbstk.github.io/">Learn more about this account</a>.</p>';
         mask.appendChild(message);
         var div = document.createElement("div");
         div.className = "feedback"
@@ -512,7 +510,7 @@ chrome.extension.sendMessage({}, function(response) {
         if (height > 150) message.className = 'probably-a-bot-mask-message-medium';
         if (height > 300) message.className = 'probably-a-bot-mask-message-tall';
         message.innerHTML = 'We are ' + Math.round(100 * user.score) + '% confident that this story contains fake news.';
-        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet" onclick="return false;">Reveal story</a>. <a href="https://botometer.iuni.iu.edu/#!/?sn=' + user.screen_name + '" target="_blank">Learn more about this account</a>.</p>';
+        message.innerHTML += '<p style="font-size: 0.8rem"><a href="#/" class="reveal-tweet" onclick="return false;">Reveal story</a>. <a href="https://bbstk.github.io/bbstk.github.io/" target="_blank">Learn more about this account</a>.</p>';
         mask.appendChild(message);
         var div = document.createElement("div");
         div.className = "feedback"
